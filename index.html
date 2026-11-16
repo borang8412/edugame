@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>안전거리 지킴이: 연필 배달 대작전!</title>
+  <!-- 귀여운 한글 웹폰트 (주아체) 불러오기 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      font-family: 'Jua', 'Malgun Gothic', sans-serif;
+    }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #111;
+      touch-action: none;
+    }
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 상단 HUD */
+    #hud {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      z-index: 10;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .hud-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .hud-box {
+      background: rgba(24, 32, 44, 0.88);
+      border: 3px solid #ecf0f1;
+      border-radius: 14px;
+      padding: 8px 16px;
+      color: #fff;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 0 #0d131a;
+      letter-spacing: 0.5px;
+    }
+    .highlight { color: #ffd700; font-size: 20px; }
+    .hearts { color: #ff4d4d; font-size: 19px; letter-spacing: 2px; }
+    .speed-normal { color: #a8e6cf; }
+    .speed-fast { color: #ff9f43; }
+
+    /* 카메라 시점 전환 버튼 */
+    #cam-mode-btn {
+      pointer-events: auto;
+      background: #3498db;
+      color: #fff;
+      border: 3px solid #fff;
+      border-radius: 14px;
+      padding: 8px 16px;
+      font-size: 17px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #1f6391;
+    }
+    #cam-mode-btn:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #1f6391;
+    }
+
+    /* 중앙 시각적 거리 경고 배지 */
+    #distance-alert {
+      position: absolute;
+      top: 68px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 9px 22px;
+      border-radius: 26px;
+      font-size: 18px;
+      color: white;
+      background: rgba(46, 204, 113, 0.92);
+      border: 3px solid #fff;
+      transition: background 0.2s;
+      pointer-events: none;
+      z-index: 10;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.35);
+      white-space: nowrap;
+      max-width: 92vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: 0.5px;
+    }
+
+    /* 엔딩 컷씬 선생님 칭찬 말풍선 */
+    #cutscene-dialogue {
+      position: absolute;
+      bottom: 12%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ffffff;
+      color: #2c3e50;
+      border: 5px solid #f1c40f;
+      border-radius: 22px;
+      padding: 20px 28px;
+      font-size: 22px;
+      text-align: center;
+      box-shadow: 0 8px 0 rgba(0,0,0,0.4);
+      z-index: 18;
+      width: min(90vw, 580px);
+      line-height: 1.5;
+      animation: popIn 0.35s ease-out;
+    }
+    @keyframes popIn {
+      0% { transform: translateX(-50%) scale(0.7); opacity: 0; }
+      100% { transform: translateX(-50%) scale(1); opacity: 1; }
+    }
+
+    /* 모바일 & 터치 컨트롤러 영역 */
+    #mobile-controls {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      right: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: none;
+      z-index: 12;
+    }
+    #joystick-zone {
+      width: 130px;
+      height: 130px;
+      background: rgba(255, 255, 255, 0.18);
+      border: 3px solid rgba(255, 255, 255, 0.65);
+      border-radius: 50%;
+      position: relative;
+      pointer-events: auto;
+      touch-action: none;
+    }
+    #joystick-knob {
+      width: 54px;
+      height: 54px;
+      background: rgba(241, 196, 15, 0.92);
+      border: 3px solid #fff;
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+      pointer-events: none;
+      transition: background 0.15s;
+    }
+    #look-hint-box {
+      background: rgba(0, 0, 0, 0.58);
+      color: #ecf0f1;
+      border: 2px dashed rgba(255,255,255,0.55);
+      border-radius: 14px;
+      padding: 10px 14px;
+      font-size: 14px;
+      text-align: right;
+      line-height: 1.45;
+      pointer-events: none;
+    }
+
+    /* 우측 화면 드래그 시점 회전 터치존 */
+    #camera-touch-zone {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 60vw;
+      height: 100vh;
+      z-index: 5;
+      touch-action: none;
+    }
+
+    /* 오버레이 공통 */
+    .overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 22, 30, 0.84);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      z-index: 25;
+      text-align: center;
+      padding: 16px;
+    }
+    .card {
+      background: #2c3e50;
+      border: 4px solid #ecf0f1;
+      border-radius: 22px;
+      padding: 28px 32px;
+      max-width: 640px;
+      width: 100%;
+      box-shadow: 0 10px 0 #1a252f;
+      max-height: 92vh;
+      overflow-y: auto;
+    }
+
+    /* 1단계: 메인 타이틀 전용 스타일 */
+    .title-card {
+      background: linear-gradient(180deg, #1e3799 0%, #0c2461 100%);
+      border: 5px solid #f6b93b;
+      padding: 42px 30px;
+    }
+    .title-badge {
+      display: inline-block;
+      background: #e58e26;
+      color: #fff;
+      padding: 6px 18px;
+      border-radius: 20px;
+      font-size: 18px;
+      margin-bottom: 14px;
+      border: 2px solid #fff;
+    }
+    .main-logo {
+      font-size: clamp(32px, 6vw, 52px);
+      color: #f6b93b;
+      text-shadow: 4px 4px 0 #000, -2px -2px 0 #000;
+      margin: 10px 0;
+      line-height: 1.25;
+      letter-spacing: 1.5px;
+    }
+    .title-icons {
+      font-size: clamp(42px, 7vw, 64px);
+      margin: 18px 0;
+      animation: floatBounce 1.6s infinite ease-in-out;
+    }
+    @keyframes floatBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .title-sub {
+      font-size: clamp(17px, 2.6vw, 22px);
+      color: #dff9fb;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    h1 {
+      margin: 0 0 10px 0;
+      font-size: clamp(24px, 4.2vw, 36px);
+      color: #f1c40f;
+      text-shadow: 2px 2px 0 #000;
+      font-weight: normal;
+    }
+    .rules {
+      text-align: left;
+      background: rgba(0,0,0,0.34);
+      padding: 16px 20px;
+      border-radius: 14px;
+      line-height: 1.7;
+      font-size: clamp(15px, 2.3vw, 18px);
+      margin: 14px 0;
+    }
+    .badge-green { color: #2ecc71; }
+    .badge-yellow { color: #f1c40f; }
+    .badge-red { color: #ff6b6b; }
+    .action-btn {
+      background: #27ae60;
+      color: white;
+      border: 3px solid #fff;
+      padding: 14px 38px;
+      font-size: 22px;
+      border-radius: 16px;
+      cursor: pointer;
+      box-shadow: 0 5px 0 #1e8449;
+      letter-spacing: 1px;
+    }
+    .action-btn:hover { background: #2ecc71; }
+    .action-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #1e8449; }
+    .hidden { display: none !important; }
+
+    #damage-flash {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(231, 76, 60, 0.45);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s;
+      z-index: 15;
+    }
+
+    @media (max-width: 600px) {
+      .hud-box { font-size: 14px; padding: 6px 10px; gap: 6px; }
+      .highlight, .hearts { font-size: 16px; }
+      #cam-mode-btn { font-size: 14px; padding: 6px 10px; }
+      #distance-alert { top: 56px; font-size: 14px; padding: 6px 14px; }
+      #joystick-zone { width: 110px; height: 110px; }
+      #joystick-knob { width: 46px; height: 46px; }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <div id="game-container">
+    <!-- 상단 HUD -->
+    <div id="hud">
+      <div class="hud-group">
+        <div class="hud-box">
+          <span>하트: <span id="lives-display" class="hearts">❤️❤️❤️</span></span>
+          <span>|</span>
+          <span id="floor-display" class="highlight">2층 복도</span>
+          <span>|</span>
+          <span id="walk-mode-display" class="speed-normal">🚶 기본 걸음</span>
+        </div>
+      </div>
+      <div class="hud-group">
+        <div class="hud-box">
+          <span>✏️ 연필: <span id="pencil-display" class="highlight">0 / 7</span></span>
+          <span>|</span>
+          <span>⏱️ <span id="time-display">0.0</span>초</span>
+        </div>
+        <button id="cam-mode-btn">📷 시점: 기본</button>
+      </div>
+    </div>
+
+    <!-- 시각적 단서 배너 -->
+    <div id="distance-alert">🟢 안전거리 유지 중 (초록 링 밖으로 걸어요)</div>
+
+    <!-- 엔딩 컷씬 대사창 -->
+    <div id="cutscene-dialogue" class="hidden">
+      👩‍🏫 담임 선생님: "와아~ 친구들과 안전거리를 잘 유지했어요! 연필 7자루를 모두 안전하게 배달했구나, 정말 칭찬해요!" 💖⭐
+    </div>
+
+    <!-- 우측 시점 드래그 터치 영역 -->
+    <div id="camera-touch-zone"></div>
+
+    <!-- 모바일 조이스틱 및 시점 안내 -->
+    <div id="mobile-controls">
+      <div id="joystick-zone">
+        <div id="joystick-knob"></div>
+      </div>
+      <div id="look-hint-box">
+        👆 오른쪽 화면 드래그 또는 Q / E 키 ➔ 시점 회전<br>
+        🚶 기본 걸음: WASD / 화살표 / 조이스틱<br>
+        🏃 빠른 걸음: Shift + 이동키 / 조이스틱 끝까지 밀기
+      </div>
+    </div>
+
+    <div id="damage-flash"></div>
+
+    <!-- 1단계: 시작 타이틀 화면 -->
+    <div id="title-screen" class="overlay">
+      <div class="card title-card">
+        <div class="title-badge">🏫 초등학교 안전 교육 게임</div>
+        <div class="main-logo">안전거리 지킴이<br>✏️ 연필 배달 대작전!</div>
+        <div class="title-icons">🧒 ↔️ 🟢 ↔️ 👧</div>
+        <p class="title-sub">
+          친구와 적절한 거리를 유지하며 안전하게 걸어요!<br>
+          시각적 단서(안전 링)를 보고 부딪히지 않게 이동해 볼까요?
+        </p>
+        <button id="title-next-btn" class="action-btn">시작하기 ▶</button>
+      </div>
+    </div>
+
+    <!-- 2단계: 조작 및 규칙 안내 화면 -->
+    <div id="guide-screen" class="overlay hidden">
+      <div class="card">
+        <h1>🎮 게임 방법 및 조작 안내</h1>
+        <p style="font-size: 18px; margin: 6px 0;">2층 복도에서 출발해 계단을 내려가 1층 끝 1-1반 선생님께 연필 7자루를 배달해요!</p>
+        <div class="rules">
+          ✅ 기본 걸음: 방향키(↑↓←→) / WASD 공통 또는 왼쪽 조이스틱<br>
+          ✅ 빠른 걸음: Shift 키를 누른 채 이동 또는 조이스틱을 최대 바깥으로 밀기!<br>
+          ✅ 시점 회전: 화면 오른쪽 드래그, Q/E 키, 상단 [📷 시점 버튼]<br>
+          ✅ 시각적 단서(안전 링): 친구 발밑의 링 색깔을 보고 안전거리를 지켜요!<br>
+          &nbsp;&nbsp;• <span class="badge-green">초록 링</span>: 안전 | <span class="badge-yellow">노란 링</span>: 주의(비켜 걷기) | <span class="badge-red">빨간 링</span>: 충돌 넘어짐!<br>
+          ✅ 장애물 주의: 바닥의 물웅덩이를 밟으면 미끄러져 휘청거려요!<br>
+          ✅ 승리 조건: 연필 7자루를 모두 모은 뒤 1층 끝 열린 1-1반 앞문으로 들어가면 승리!
+        </div>
+        <button id="start-btn" class="action-btn">배달 출발하기! (음성·음악 ON 🔊)</button>
+      </div>
+    </div>
+
+    <!-- 3단계: 결과 화면 -->
+    <div id="end-screen" class="overlay hidden">
+      <div class="card">
+        <h1 id="end-title">결과</h1>
+        <p id="end-message" style="font-size: 20px; line-height: 1.6;"></p>
+        <div class="rules">
+          💡 오늘의 안전 배움:<br>
+          복도와 계단에서는 친구 주변의 안전거리(노란색·초록색 링)를 눈으로 확인하고, 시점을 돌려 주변을 살피며 걸으면 모두가 안전해요!
+        </div>
+        <button id="restart-btn" class="action-btn">다시 도전하기</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
